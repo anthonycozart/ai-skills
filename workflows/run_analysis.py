@@ -29,7 +29,7 @@ else:
 
 
 def subsample_corpus(input_path: Path, output_path: Path, n: int, seed: int):
-    """Draw a random subsample from the corpus and write to a new JSONL file."""
+    """Draw a random subsample of N files from the corpus."""
     records = []
     with open(input_path) as f:
         for line in f:
@@ -50,6 +50,45 @@ def subsample_corpus(input_path: Path, output_path: Path, n: int, seed: int):
             f.write(line + "\n")
 
     print(f"  Wrote {len(sample)} records to {output_path.name}")
+    return len(sample)
+
+
+def subsample_repos(input_path: Path, output_path: Path, pct: float, seed: int):
+    """Draw a deterministic subsample of repos, keeping all files from selected repos.
+
+    Repos are ranked by a seeded hash so that increasing pct always adds repos
+    without changing which ones were already selected. E.g., the 50% sample is
+    always a strict subset of the 75% sample.
+    """
+    import hashlib
+
+    # Group lines by repo
+    repo_lines: dict[str, list[str]] = {}
+    with open(input_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            repo = json.loads(line)["repo"]
+            repo_lines.setdefault(repo, []).append(line)
+
+    # Deterministic ordering: hash each repo name with the seed
+    def repo_rank(repo: str) -> str:
+        return hashlib.sha256(f"{seed}:{repo}".encode()).hexdigest()
+
+    repos_sorted = sorted(repo_lines.keys(), key=repo_rank)
+    n_repos = max(1, int(len(repos_sorted) * pct / 100))
+    selected = repos_sorted[:n_repos]
+
+    sample = [line for repo in selected for line in repo_lines[repo]]
+
+    with open(output_path, "w") as f:
+        for line in sample:
+            f.write(line + "\n")
+
+    print(f"  {len(repos_sorted)} repos in corpus, sampled {len(selected)} ({pct}%)")
+    print(f"  {len(sample)} files from selected repos")
+    print(f"  Wrote to {output_path.name}")
     return len(sample)
 
 
@@ -89,8 +128,16 @@ def main():
         help="Seconds between API calls (default: 0.5)",
     )
     parser.add_argument(
+        "--sample-repos-pct", type=float, default=None,
+        help="Sample this percentage of repos (e.g., --sample-repos-pct 50 for 50%%). Keeps all files from selected repos.",
+    )
+    parser.add_argument(
         "--skip-subsample", action="store_true",
         help="Skip subsampling and run on the full corpus",
+    )
+    parser.add_argument(
+        "--mode", type=str, choices=["regular", "batch"], default="regular",
+        help="API mode for classification: 'regular' or 'batch' (default: regular)",
     )
     parser.add_argument(
         "--skip-validation", action="store_true",
@@ -129,25 +176,31 @@ def main():
 
     # Step 1: Subsample
     if not args.skip_subsample:
-        print(f"\n{'=' * 60}")
-        print(f"  Step 1: Subsample corpus (n={args.n}, seed={args.seed})")
-        print(f"{'=' * 60}\n")
+        if args.sample_repos_pct:
+            print(f"\n{'=' * 60}")
+            print(f"  Step 1: Subsample repos ({args.sample_repos_pct}%, seed={args.seed})")
+            print(f"{'=' * 60}\n")
 
-        subsample_corpus(corpus_path, input_corpus, args.n, args.seed)
+            subsample_repos(corpus_path, input_corpus, args.sample_repos_pct, args.seed)
+        else:
+            print(f"\n{'=' * 60}")
+            print(f"  Step 1: Subsample corpus (n={args.n}, seed={args.seed})")
+            print(f"{'=' * 60}\n")
+
+            subsample_corpus(corpus_path, input_corpus, args.n, args.seed)
     else:
         print("\n  Skipping subsample (--skip-subsample), using full corpus")
 
     # Step 2: Classify
-    run_step(
-        f"Step 2: Classify with {args.model}",
-        [
-            PYTHON, "scripts/analyze_corpus.py",
-            "--input", str(input_corpus),
-            "--output", str(classifications_path),
-            "--model", args.model,
-            "--delay", str(args.delay),
-        ],
-    )
+    classify_cmd = [
+        PYTHON, "scripts/analyze_corpus.py",
+        "--input", str(input_corpus),
+        "--output", str(classifications_path),
+        "--model", args.model,
+        "--delay", str(args.delay),
+        "--mode", args.mode,
+    ]
+    run_step(f"Step 2: Classify with {args.model} ({args.mode} mode)", classify_cmd)
 
     # Step 3: Validate
     if not args.skip_validation:

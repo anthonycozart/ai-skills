@@ -43,7 +43,7 @@ def compute_dbcv(reduced: np.ndarray, cluster_ids: np.ndarray) -> float:
     if n_clusters < 2:
         return float("nan")
 
-    return hdbscan.validity.validity_index(reduced, cluster_ids)
+    return hdbscan.validity.validity_index(reduced.astype(np.float64), cluster_ids)
 
 
 def run_sweep(args):

@@ -340,15 +340,15 @@ def poll_batch(batch_id: str, interval: int = 30) -> dict:
         print(
             f"  Batch {batch_id[:12]}... "
             f"succeeded={counts.succeeded} "
-            f"failed={counts.failed} "
-            f"in_progress={counts.processing + counts.canceling}"
+            f"errored={counts.errored} "
+            f"processing={counts.processing}"
         )
 
         if status.processing_status == "ended":
             return {
                 "processing_status": status.processing_status,
                 "succeeded": counts.succeeded,
-                "failed": counts.failed,
+                "failed": counts.errored,
                 "expired": counts.expired,
             }
 
@@ -381,13 +381,14 @@ def retrieve_batch_results(batch_id: str) -> list[BatchResult]:
     for entry in client.messages.batches.results(batch_id):
         if entry.result.type == "succeeded":
             message = entry.result.message
+            text = message.content[0].text if message.content else None
             results.append(BatchResult(
                 custom_id=entry.custom_id,
-                succeeded=True,
-                text=message.content[0].text,
+                succeeded=text is not None,
+                text=text,
                 input_tokens=message.usage.input_tokens,
                 output_tokens=message.usage.output_tokens,
-                error=None,
+                error=None if text else "empty response",
             ))
         else:
             results.append(BatchResult(

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #fff;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+    margin: 0;
+  }
+  .chart-container {
+    max-width: 640px;
+    width: 100%;
+  }
+  .headline {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 6px 0;
+    line-height: 1.3;
+  }
+  .subheadline {
+    font-size: 15px;
+    font-weight: 400;
+    color: #666;
+    margin: 0 0 24px 0;
+    line-height: 1.5;
+  }
+  .axis-label {
+    font-size: 13px;
+    fill: #666;
+  }
+  .axis line, .axis path {
+    stroke: #d4d4d4;
+  }
+  .axis text {
+    font-size: 12px;
+    fill: #888;
+  }
+  .annotation {
+    font-size: 13px;
+    fill: #1a1a1a;
+    font-weight: 500;
+  }
+  .annotation-sub {
+    font-size: 12px;
+    fill: #888;
+    font-weight: 400;
+  }
+  .source {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="chart-container">
+  <div class="headline">Most tasks fall in an uncertain middle ground</div>
+  <div class="subheadline">Conceptual distribution of tasks by the net value of delegating them to AI</div>
+  <svg id="chart"></svg>
+  <div class="source">Illustrative distribution</div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+const margin = {top: 20, right: 30, bottom: 54, left: 16};
+const width = 640 - margin.left - margin.right;
+const height = 340 - margin.top - margin.bottom;
+
+const svg = d3.select("#chart")
+  .attr("width", width + margin.left + margin.right)
+  .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+  .attr("transform", `translate(${margin.left},${margin.top})`);
+
+// Normal distribution
+function gaussian(x, mean, sd) {
+  return Math.exp(-0.5 * Math.pow((x - mean) / sd, 2)) / (sd * Math.sqrt(2 * Math.PI));
+}
+
+const mean = 0.55;
+const sd = 0.17;
+const n = 200;
+const data = d3.range(n).map(i => {
+  const x = i / (n - 1);
+  return { x, y: gaussian(x, mean, sd) };
+});
+
+const x = d3.scaleLinear().domain([0, 1]).range([0, width]);
+const y = d3.scaleLinear().domain([0, d3.max(data, d => d.y) * 1.15]).range([height, 0]);
+
+// Shaded regions
+const lowData = data.filter(d => d.x <= 0.28);
+const highData = data.filter(d => d.x >= 0.82);
+const midData = data.filter(d => d.x >= 0.28 && d.x <= 0.82);
+
+const area = d3.area()
+  .x(d => x(d.x))
+  .y0(height)
+  .y1(d => y(d.y))
+  .curve(d3.curveBasis);
+
+// Middle region - highlighted
+svg.append("path")
+  .datum(midData)
+  .attr("d", area)
+  .attr("fill", "#e8e0d8")
+  .attr("opacity", 0.7);
+
+// Low region
+svg.append("path")
+  .datum(lowData)
+  .attr("d", area)
+  .attr("fill", "#f0f0f0")
+  .attr("opacity", 0.6);
+
+// High region
+svg.append("path")
+  .datum(highData)
+  .attr("d", area)
+  .attr("fill", "#f0f0f0")
+  .attr("opacity", 0.6);
+
+// Curve outline
+const line = d3.line()
+  .x(d => x(d.x))
+  .y(d => y(d.y))
+  .curve(d3.curveBasis);
+
+svg.append("path")
+  .datum(data)
+  .attr("d", line)
+  .attr("fill", "none")
+  .attr("stroke", "#1a1a1a")
+  .attr("stroke-width", 2);
+
+// X axis - just line, no ticks
+svg.append("line")
+  .attr("x1", 0)
+  .attr("x2", width)
+  .attr("y1", height)
+  .attr("y2", height)
+  .attr("stroke", "#1a1a1a")
+  .attr("stroke-width", 1);
+
+// X axis labels
+svg.append("text")
+  .attr("x", x(0.05))
+  .attr("y", height + 18)
+  .attr("text-anchor", "start")
+  .attr("class", "axis-label")
+  .text("Low value");
+
+svg.append("text")
+  .attr("x", x(0.95))
+  .attr("y", height + 18)
+  .attr("text-anchor", "end")
+  .attr("class", "axis-label")
+  .text("High value");
+
+// X axis title
+svg.append("text")
+  .attr("x", width / 2)
+  .attr("y", height + 42)
+  .attr("text-anchor", "middle")
+  .attr("font-size", "14px")
+  .attr("fill", "#1a1a1a")
+  .attr("font-weight", 500)
+  .text("Net value of delegating task to AI");
+
+// Left annotation
+svg.append("text")
+  .attr("x", x(0.08))
+  .attr("y", y(gaussian(0.15, mean, sd)) - 8)
+  .attr("text-anchor", "start")
+  .attr("class", "annotation")
+  .text("Clearly not");
+
+svg.append("text")
+  .attr("x", x(0.08))
+  .attr("y", y(gaussian(0.15, mean, sd)) + 8)
+  .attr("text-anchor", "start")
+  .attr("class", "annotation")
+  .text("worth delegating");
+
+svg.append("text")
+  .attr("x", x(0.08))
+  .attr("y", y(gaussian(0.15, mean, sd)) + 24)
+  .attr("text-anchor", "start")
+  .attr("class", "annotation-sub")
+  .text("Faster to do yourself");
+
+// Right annotation
+svg.append("text")
+  .attr("x", x(0.92))
+  .attr("y", y(gaussian(0.85, mean, sd)) - 8)
+  .attr("text-anchor", "end")
+  .attr("class", "annotation")
+  .text("Clearly worth");
+
+svg.append("text")
+  .attr("x", x(0.92))
+  .attr("y", y(gaussian(0.85, mean, sd)) + 8)
+  .attr("text-anchor", "end")
+  .attr("class", "annotation")
+  .text("delegating");
+
+svg.append("text")
+  .attr("x", x(0.92))
+  .attr("y", y(gaussian(0.85, mean, sd)) + 24)
+  .attr("text-anchor", "end")
+  .attr("class", "annotation-sub")
+  .text("Saves time, low risk");
+
+// Middle annotation with leader line
+const midPeakY = y(gaussian(mean, mean, sd));
+
+svg.append("line")
+  .attr("x1", x(mean))
+  .attr("x2", x(mean))
+  .attr("y1", midPeakY - 4)
+  .attr("y2", midPeakY - 30)
+  .attr("stroke", "#1a1a1a")
+  .attr("stroke-width", 1);
+
+svg.append("text")
+  .attr("x", x(mean))
+  .attr("y", midPeakY - 38)
+  .attr("text-anchor", "middle")
+  .attr("class", "annotation")
+  .text("Where most tasks live");
+
+svg.append("text")
+  .attr("x", x(mean))
+  .attr("y", midPeakY - 22)
+  .attr("text-anchor", "middle")
+  .attr("class", "annotation-sub")
+  .text("Value depends on how you delegate");
+
+// No y-axis (prevalence is implied by height)
+</script>
+</body>
+</html>
