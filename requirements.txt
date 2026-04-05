@@ -1,0 +1,9 @@
+anthropic
+google-cloud-bigquery
+google-genai
+hdbscan
+openai
+python-dotenv
+requests
+scikit-learn
+umap-learn

@@ -1,0 +1,18 @@
+# Data (too large for git)
+data/
+
+# Secrets
+.env
+.secrets/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Claude
+.claude/
+
+# Working notes
+instructions/
+website/
