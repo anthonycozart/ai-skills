@@ -69,8 +69,8 @@ Here’s how we’ll turn this idea into an empirical exploration:
 | *Dimension* | *Description* | *Data* |
 | :---- | :---- | :---- |
 | **Object** | The aspect of agent behavior the instruction is shaping (e.g., API error handling) | Open-ended |
-| **Functional intent** | The primary and secondary reasons a human wrote the instruction, that is, the gap or concern that motivated it | Categorical: Context-provision Preference-alignment Risk-mitigation Tool-orchestration Process-specification |
-| **Discretion** | The extent of decisions the agent must make to follow the instruction | Categorical: Prescribed Adaptive |
+| **Functional intent** | The primary and secondary reasons a human wrote the instruction, that is, the gap or concern that motivated it | Categorical:<br>Context-provision<br>Preference-alignment<br>Risk-mitigation<br>Tool-orchestration<br>Process-specification |
+| **Discretion** | The extent of decisions the agent must make to follow the instruction | Categorical:<br>Prescribed<br>Adaptive |
 | **Decisions** | The distinct decision points to follow the instruction | Count |
 | **Constraints** | The explicit constraints in the instruction (e.g., "always use X") | Count |
 
